@@ -1,0 +1,103 @@
+<zhihao yang 002311628>
+
+
+
+                                     The bbserv Application
+
+1. User Guide : How to build and run the bbserv application
+
+    I provide the CMakeLists.txt instead of the Makefile, so you must use CMake to build, it will automatically create the Makefile.
+
+To build, you need to just run the following command at the root directory of the project:
+----------------------------------------------------------------
+cmake .
+make
+----------------------------------------------------------------
+
+Then the executable bbserv will be created at the root of the project and you can run it with the following command:
+----------------------------------------------------------------
+./bbserv
+----------------------------------------------------------------
+
+If you want to clean the build and running files, you can run the following command:
+----------------------------------------------------------------
+./clean.sh
+----------------------------------------------------------------
+
+Then all of the created files will be deleted, but the original source files exist.
+
+The application will read the configuration with default name of 'bbserv.conf'.
+If you want to provide your configuration file, arguments for the application then you can use the following:
+----------------------------------------------------------------
+./bbserv -c my-bbserv.conf
+----------------------------------------------------------------
+This "my-bbserv.conf" configuration file will be automatically replaced with the default configuration "bbserv.conf".
+
+The sample 'bbserv.conf' configuration file is:
+----------------------------------------------------------------
+BBPORT=9000
+SYNCPORT=10000
+BBFILE=bbfile01.txt
+THMAX=8
+DAEMON=false
+DEBUG=true
+PEERS=10.18.0.21:9000,10.18.0.22:9000
+----------------------------------------------------------------
+
+Even better, you can provide appropriate port numbers directly on the command line of your server
+along the following line:
+----------------------------------------------------------------
+./bbserv -p $((8000+$(id -u))) -s $((9000+$(id -u))) -b bbfile
+----------------------------------------------------------------
+
+The following order must be supported: -b, -f, -d, -t, -T, -p, -s, -c, as you can see the [Bulletin Board Messages and Distributed Agreement:A CSC 590 Challenge].pdf file.
+
+
+2. Design description
+
+2.1 Thread Pool
+class FuncThreadPool
+
+see Thread/FuncThreadPool.h
+
+The thread Pool uses a task queue to contain all task functions to be executed, and when a task is appended to the queue,
+one of threads is notified to pop from the queue to execute in its thread execution process.
+
+The thread pool is initialized with a fixed number of threads, and the fixed number is Tmax argument.
+
+2.2 Read-Write Lock
+'class UniqueReadLock' is for read-lock when concurrent reading from the bbfile (the bulletin board file).
+'class UniqueWriteLock' is for write-lock to protect that only one thread can access the bbfile to write into the bbfile.
+
+see BbServer/BbServer.h
+
+Using the class UniqueReadLock, the read-operations can be concurrently performed. That means many reading operations can be simultaneously performed at the same time,
+and at the same time writing operation can not be performed.
+
+Using the class UniqueWriteLock, only one write-operation in one thread can access the bbfile, and all other reading or writing operations be prevented out of the bbfile at the same time.
+
+2.3 Epoll
+class BbServer
+
+In order to increase the degree of concurrency, this program use Epoll asynchronous mechanism to centrally processes signals and client socket connections.
+When after reading data from the client socket, it appends a data process task into the thread pool to concurrently process readinig or writing bbfile.
+
+2.4 Daemon process
+BbServer::InitDaemonServer()
+
+When the d argument is true, the bbserv process is converted to a daemon process.
+It first redirects the std output to the bbserv.log file, and then forks a subprocess to be a daemon process.
+
+2.5 Signal and Timeout
+
+If the expire time (30 seconds) is specified that one client socket has no communication with the bbserv server,
+the Timeout signal (SIGALRM) is sent and notify the bbserv server to close the client socket.
+
+The signal mechanism will process SIGHUP and SIGQUIT, and other signals will also be process such as SIGTERM, SIGINT.
+
+
+
+
+
+
+

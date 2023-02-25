@@ -1,0 +1,29 @@
+                    Server Sync Two-Phase Commit protocol
+
+When a bbserv server receives a WRITE or REPLACE msg from a client, the server must synchronize this message to all other peers servers. This server is 'master', and other peers are 'slaves'.
+In fact, any one of the servers will be master and other servers then become slaves. All of the servers sync two-phase commit protocol must end with one '\n'.
+
+
+precommit <msg>
+    The master server send this message to all slaves(other peers servers). the <msg> can be any words, eg: 'ready'
+
+
+ready_yes <msg>
+    When the slaves receive the 'precommit' message (above), they must send the 'ready_yes' message back to the master server.
+    Only when the master server receives all the slaves the 'ready_yes' message, the master server can then send the following 'commit' message.
+    Otherwise, the master server send 'abort' message to all slaves. the <msg> can be any words, eg: 'ok'.
+
+ready_no <msg>
+    When one of the slaves receives the 'precommit' message (above), and it is not in ready state, it can send ready_no message back to the master server.
+    The <msg> can be any words, eg: 'state is not ready'.
+
+commit <write-or-replace>
+    The master server send this message to all slaves if it receives all the slaves 'ready_yes' message.
+    When a WRITE message from a client is received, the format of<write-or-replace> is <user>/<write-message>, eg: the WRITE message 'hello' is sent by 'ZhangSan', and the <write-or-replace> must be 'ZhangSan/hello'.
+    When a REPLACE message from a client is received, the format of <write-or-replace> is <message-id>/<user>/<write-message>, eg: the replace message 'hello' is sent by 'LiSi' and the replace message id is 8,
+    and the <write-or-replace> must be '8/LiSi/hello'.
+
+abort <msg>
+    If there exists a negative acknowledgment, the master sends an “abort” message to all the slaves.
+    The <msg> can be any words, eg: '!'.
+
